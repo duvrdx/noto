@@ -55,7 +55,7 @@ Regra que atravessa toda esta seção: **no scaffolding, a única variável obri
 
 ## 5. Migrações e acesso a dados
 
-- [ ] 5.1 Criar `migrations/00001_enable_pg_trgm.sql` com `-- +goose Up` criando a extensão e `-- +goose Down` removendo-a. Nenhuma tabela do PRD §6.2. Verificação: inspeção do arquivo; o comportamento contra um banco real é verificado na task **6.4**. Commit: `feat(db): migração inicial habilita pg_trgm`. (owner: agent)
+- [x] 5.1 Criar `migrations/00001_enable_pg_trgm.sql` com `-- +goose Up` criando a extensão e `-- +goose Down` removendo-a. Nenhuma tabela do PRD §6.2. Verificação: inspeção do arquivo; o comportamento contra um banco real é verificado na task **6.4**. Commit: `feat(db): migração inicial habilita pg_trgm`. (owner: agent)
 - [ ] 5.2 Implementar `internal/platform/migrations/embed.go` com `embed.FS` sobre `migrations/` e `cmd/noto/migrate.go` usando `goose` como biblioteca contra `DATABASE_URL`. Verificação: `go build ./...` compila e `noto migrate` roda contra um banco inexistente falhando com erro claro de conexão (não com panic). Commit: `feat(migrate): subcomando migrate com migrações embutidas`. (owner: agent)
 - [ ] 5.3 Criar `sqlc.yaml` (engine `postgresql`, `sql_package: pgx/v5`, schema em `migrations/`, queries em `internal/adapters/postgres/queries/`, saída em `internal/adapters/postgres/db/`) e o diretório de queries vazio com um `.gitkeep`. Verificação: `sqlc generate` encerra com sucesso e sem erro de configuração, com zero queries. Commit: `chore(db): configura sqlc`. (owner: agent)
 
