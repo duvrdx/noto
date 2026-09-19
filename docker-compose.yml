@@ -2,6 +2,12 @@
 # rodando como `serve` e como `worker` (ADR 0001, ADR 0008).
 #
 # Uso: cp .env.example .env && docker compose up -d --build && make migrate
+# Portas publicadas SÓ no loopback (127.0.0.1): o Postgres tem credencial de
+# desenvolvimento (noto/noto) e o Grafana usa o login padrão, então nada aqui
+# pode ficar exposto à rede. O ADR 0008 quer a mesma topologia em dev e em
+# produção; numa VPS, exponha somente o que for público e apenas por um proxy
+# reverso, nunca publicando estas portas em 0.0.0.0.
+#
 # As migrações NÃO rodam sozinhas no `up`: `make migrate` é um passo explícito.
 
 services:
@@ -13,7 +19,7 @@ services:
       POSTGRES_PASSWORD: noto
       POSTGRES_DB: noto
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -27,9 +33,9 @@ services:
   lgtm:
     image: grafana/otel-lgtm
     ports:
-      - "3000:3000" # Grafana
-      - "4317:4317" # OTLP gRPC (o .env.example aponta o binário no host para cá)
-      - "4318:4318" # OTLP HTTP
+      - "127.0.0.1:3000:3000" # Grafana
+      - "127.0.0.1:4317:4317" # OTLP gRPC (o .env.example aponta o binário no host para cá)
+      - "127.0.0.1:4318:4318" # OTLP HTTP
 
   serve:
     # serve e worker constroem do mesmo Dockerfile e contexto; com o cache de
@@ -47,7 +53,7 @@ services:
       DATABASE_URL: postgres://noto:noto@postgres:5432/noto?sslmode=disable
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
