@@ -79,7 +79,7 @@ Regra que atravessa toda esta seção: **no scaffolding, a única variável obri
 
 ## 9. Verificação final
 
-- [ ] 9.1 Rodar o critério de pronto completo, do zero, num clone limpo: `make build` · `docker compose up -d` · `make migrate` · `make test` · `make lint` · `make eval-resolve`. Todos verdes. Verificação: os seis comandos, nessa ordem, sem intervenção manual além de copiar `.env.example` para `.env` e preencher `DATABASE_URL` se o default não servir. Sem commit. (owner: agent)
+- [x] 9.1 Rodar o critério de pronto completo, do zero, num clone limpo: `make build` · `docker compose up -d` · `make migrate` · `make test` · `make lint` · `make eval-resolve`. Todos verdes. Verificação: os seis comandos, nessa ordem, sem intervenção manual além de copiar `.env.example` para `.env` e preencher `DATABASE_URL` se o default não servir. Sem commit. (owner: agent) *Verificada em 2026-09-19 num clone limpo (sem `.env`), com `env -i HOME=$HOME PATH=/usr/bin:/bin`: os seis comandos passaram na ordem, com `cp .env.example .env` como única intervenção; `govulncheck ./...` limpo. Ver o relatório do lote 8.*
 
 ---
 
