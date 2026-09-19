@@ -1,0 +1,69 @@
+# Ambiente local do Noto: Postgres, stack de observabilidade e a mesma imagem
+# rodando como `serve` e como `worker` (ADR 0001, ADR 0008).
+#
+# Uso: cp .env.example .env && docker compose up -d --build && make migrate
+# As migrações NÃO rodam sozinhas no `up`: `make migrate` é um passo explícito.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      # credenciais de desenvolvimento local, as mesmas do DATABASE_URL do .env.example
+      POSTGRES_USER: noto
+      POSTGRES_PASSWORD: noto
+      POSTGRES_DB: noto
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noto -d noto"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Grafana + Loki + Tempo + Prometheus + coletor OTLP. Sem volume: telemetria
+  # de desenvolvimento não precisa sobreviver a um `down -v`.
+  lgtm:
+    image: grafana/otel-lgtm
+    ports:
+      - "3000:3000" # Grafana
+      - "4317:4317" # OTLP gRPC (o .env.example aponta o binário no host para cá)
+      - "4318:4318" # OTLP HTTP
+
+  serve:
+    # serve e worker constroem do mesmo Dockerfile e contexto; com o cache de
+    # camadas o conteúdo é idêntico e só o comando difere (ADR 0001).
+    build: .
+    command: ["serve"]
+    env_file:
+      - .env
+    # Override: o .env aponta para `localhost`, o certo para rodar o binário no
+    # host (as portas estão publicadas). Dentro da rede do Compose, `localhost`
+    # é o próprio contêiner, então estes dois endereços mudam para os nomes dos
+    # serviços. É o único lugar onde essa divergência nasce; se mudar a URL do
+    # banco no .env, lembre de conferir aqui também.
+    environment:
+      DATABASE_URL: postgres://noto:noto@postgres:5432/noto?sslmode=disable
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: ["worker"]
+    env_file:
+      - .env
+    # Mesmo override do serve, pelo mesmo motivo (`localhost` é o próprio contêiner).
+    environment:
+      DATABASE_URL: postgres://noto:noto@postgres:5432/noto?sslmode=disable
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

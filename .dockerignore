@@ -1,0 +1,11 @@
+# Fora do contexto de build: segredos locais, histórico e o que não compila.
+.git
+.env
+.env.*
+!.env.example
+bin/
+docs/
+openspec/
+.claude/
+.github/
+*.md
