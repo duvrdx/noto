@@ -1,0 +1,69 @@
+name: CI
+
+# Roda em todo PR e em push para main (push em outros branches já é coberto
+# pelo PR, e rodar os dois duplicaria a execução).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Privilégio mínimo: o CI só lê o repositório. Nenhum segredo é necessário.
+permissions:
+  contents: read
+
+# Uma execução por ref; um push novo cancela a anterior ainda em andamento.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Actions fixadas por SHA de commit (a tag vN.N.N vai no comentário); o
+      # SHA veio de `git ls-remote --tags` em cada repositório.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Versão do Go derivada do go.mod (fonte única do piso), só major.minor:
+      # o setup-go resolve "1.26" para o ÚLTIMO patch 1.26.x. Com
+      # go-version-file: go.mod viria exatamente 1.26.0, cuja stdlib tem
+      # vulnerabilidades corrigidas em 1.26.1+ e faria o govulncheck reprovar.
+      - name: Ler versão do Go do go.mod
+        id: gover
+        run: echo "version=$(awk '/^go /{split($2,a,"."); print a[1]"."a[2]; exit}' go.mod)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.gover.outputs.version }}
+          cache: true
+
+      # Ferramentas com versão fixa (as mesmas do ambiente de desenvolvimento).
+      - name: Instalar staticcheck e govulncheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: staticcheck
+        run: staticcheck ./...
+
+      # -race é inegociável (testing.md §5).
+      - name: Testes com -race
+        run: go test -race ./...
+
+      # PATH="$PATH" na linha de comando do make: o Makefile antepõe
+      # /usr/local/go/bin ao PATH (para shells sem Go), o que faria o Go
+      # pré-instalado no runner passar na frente do que o setup-go configurou.
+      # Variável de linha de comando vence a atribuição do Makefile.
+      - name: Eval de resolução (determinístico)
+        run: make eval-resolve PATH="$PATH"
+
+      # Bloqueante: reprova se o código chama uma vulnerabilidade conhecida.
+      - name: govulncheck
+        run: govulncheck ./...

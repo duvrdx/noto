@@ -113,3 +113,19 @@ O repositório SHALL conter um pipeline de CI que roda, em todo PR, `go vet ./..
 - **Given** o workflow de CI do repositório
 - **When** seus passos são inspecionados
 - **Then** nenhum deles executa `make eval-parse`
+
+### Requirement: CI reprova vulnerabilidades conhecidas chamadas pelo código
+
+O pipeline de CI SHALL executar `govulncheck ./...` em todo PR, com a versão da ferramenta fixada, e SHALL falhar quando o código do repositório chamar uma vulnerabilidade conhecida da biblioteca padrão ou de uma dependência. O CI SHALL usar o último patch da versão `major.minor` declarada no `go.mod`, para que a biblioteca padrão avaliada esteja corrigida. Avisos sobre módulos que o código não chama SHALL NOT reprovar o pipeline.
+
+#### Scenario: Código afetado por vulnerabilidade reprova
+
+- **Given** um PR cuja árvore de dependências inclui uma versão vulnerável que o código chama
+- **When** o CI executa `govulncheck ./...`
+- **Then** o passo falha e o PR não pode ser mesclado
+
+#### Scenario: Árvore limpa passa
+
+- **Given** um PR sem chamadas a vulnerabilidades conhecidas
+- **When** o CI executa `govulncheck ./...`
+- **Then** o passo encerra com código zero e o pipeline prossegue
