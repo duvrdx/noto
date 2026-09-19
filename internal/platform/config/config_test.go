@@ -249,11 +249,11 @@ func renderings(t *testing.T, c config.Config) map[string]string {
 		"%v":           fmt.Sprintf("%v", c),
 		"%+v":          fmt.Sprintf("%+v", c),
 		"%#v":          fmt.Sprintf("%#v", c),
-		//lint:ignore S1025 o verbo %s é o objeto do teste; .String() não o exercitaria
-		"%s":           fmt.Sprintf("%s", c),
 		"%v ponteiro":  fmt.Sprintf("%v", &c),
 		"%+v ponteiro": fmt.Sprintf("%+v", &c),
 	}
+	//lint:ignore S1025 o verbo %s é o objeto do teste; .String() não o exercitaria
+	out["%s"] = fmt.Sprintf("%s", c)
 	for name, mk := range map[string]func(*bytes.Buffer) *slog.Logger{
 		"slog JSON":  func(b *bytes.Buffer) *slog.Logger { return slog.New(slog.NewJSONHandler(b, nil)) },
 		"slog texto": func(b *bytes.Buffer) *slog.Logger { return slog.New(slog.NewTextHandler(b, nil)) },
