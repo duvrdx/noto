@@ -70,7 +70,7 @@ Regra que atravessa toda esta seção: **no scaffolding, a única variável obri
 ## 7. Fronteira arquitetural
 
 - [x] 7.1 Escrever `internal/core/boundary_test.go` usando `golang.org/x/tools/go/packages` para carregar `./internal/core/...` com `NeedImports|NeedDeps` e falhar quando um import proibido (`pgx`, cliente de Telegram, cliente de Ollama, `internal/adapters/...`) aparecer direta ou transitivamente, reportando a cadeia completa. Cobre os quatro cenários da spec `architecture-boundary`. Verificação: `go test ./internal/core/...` passa na árvore limpa. Commit: `test(core): fronteira arquitetural do domínio`. (owner: agent)
-- [ ] 7.2 Provar que o teste **falha** quando deve: introduzir temporariamente um import de `pgx` num pacote de `core`, rodar o teste, confirmar a falha e a cadeia reportada, e reverter. Um teste de fronteira nunca exercitado no vermelho é decoração. Verificação: com o import plantado, `go test ./internal/core/...` falha nomeando o pacote e o import; após `git checkout`, passa. Sem commit. (owner: agent)
+- [x] 7.2 Provar que o teste **falha** quando deve: introduzir temporariamente um import de `pgx` num pacote de `core`, rodar o teste, confirmar a falha e a cadeia reportada, e reverter. Um teste de fronteira nunca exercitado no vermelho é decoração. Verificação: com o import plantado, `go test ./internal/core/...` falha nomeando o pacote e o import; após `git checkout`, passa. Sem commit. (owner: agent)
 
 ## 8. CI
 
