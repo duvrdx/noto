@@ -1,6 +1,9 @@
 package config_test
 
 import (
+	"bytes"
+	"fmt"
+	"log/slog"
 	"os"
 	"slices"
 	"strings"
@@ -215,5 +218,112 @@ func TestLoadAggregatesErrorsInSingleMessage(t *testing.T) {
 	msg := err.Error()
 	if !strings.Contains(msg, "DATABASE_URL") || !strings.Contains(msg, "TELEGRAM_TRANSPORT") {
 		t.Errorf("mensagem deveria citar as duas variáveis: %q", msg)
+	}
+}
+
+const (
+	secretToken   = "s3cr3t-token"
+	secretWebhook = "s3cr3t-webhook"
+	secretAPIKey  = "s3cr3t-apikey"
+	secretDBPass  = "s3cr3t-dbpass"
+)
+
+func sensitiveConfig() config.Config {
+	return config.Config{
+		TelegramBotToken:      secretToken,
+		TelegramTransport:     "webhook",
+		TelegramWebhookSecret: secretWebhook,
+		OllamaHost:            "https://ollama.com",
+		OllamaAPIKey:          secretAPIKey,
+		OllamaModel:           "algum-modelo",
+		DatabaseURL:           "postgres://noto:" + secretDBPass + "@db.internal:5432/noto?sslmode=disable",
+		LogLevel:              "info",
+		DefaultTimezone:       "America/Sao_Paulo",
+	}
+}
+
+// renderings devolve a config em todas as formas de saída relevantes.
+func renderings(t *testing.T, c config.Config) map[string]string {
+	t.Helper()
+	out := map[string]string{
+		"%v":           fmt.Sprintf("%v", c),
+		"%+v":          fmt.Sprintf("%+v", c),
+		"%#v":          fmt.Sprintf("%#v", c),
+		"%s":           fmt.Sprintf("%s", c),
+		"%v ponteiro":  fmt.Sprintf("%v", &c),
+		"%+v ponteiro": fmt.Sprintf("%+v", &c),
+	}
+	for name, mk := range map[string]func(*bytes.Buffer) *slog.Logger{
+		"slog JSON":  func(b *bytes.Buffer) *slog.Logger { return slog.New(slog.NewJSONHandler(b, nil)) },
+		"slog texto": func(b *bytes.Buffer) *slog.Logger { return slog.New(slog.NewTextHandler(b, nil)) },
+	} {
+		var b bytes.Buffer
+		mk(&b).Info("config carregada", "config", c)
+		out[name] = b.String()
+		b.Reset()
+		mk(&b).Info("config carregada", "config", &c)
+		out[name+" ponteiro"] = b.String()
+	}
+	return out
+}
+
+func TestConfigRedactsSecretsInEveryOutput(t *testing.T) {
+	for form, got := range renderings(t, sensitiveConfig()) {
+		t.Run(form, func(t *testing.T) {
+			for _, secret := range []string{secretToken, secretWebhook, secretAPIKey, secretDBPass} {
+				if strings.Contains(got, secret) {
+					t.Errorf("saída vaza %q: %s", secret, got)
+				}
+			}
+			if !strings.Contains(got, "[REDACTED]") {
+				t.Errorf("saída sem marcador de redação: %s", got)
+			}
+		})
+	}
+}
+
+func TestConfigLogKeepsDiagnosticFields(t *testing.T) {
+	var b bytes.Buffer
+	slog.New(slog.NewJSONHandler(&b, nil)).Info("config carregada", "config", sensitiveConfig())
+	got := b.String()
+	for _, want := range []string{"db.internal", "5432", "/noto", "noto", "webhook", "https://ollama.com", "algum-modelo", "America/Sao_Paulo"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("saída deveria conservar %q: %s", want, got)
+		}
+	}
+}
+
+func TestConfigRedactionOfDatabaseURLEdgeCases(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		leak string   // não pode aparecer
+		keep []string // precisa aparecer
+	}{
+		{"sem senha", "postgres://noto@localhost:5432/noto", "", []string{"localhost:5432/noto"}},
+		{"sem credenciais", "postgres://localhost/noto", "", []string{"localhost/noto"}},
+		{"senha na query", "postgres://localhost/noto?sslmode=disable&password=" + secretDBPass, secretDBPass, []string{"localhost/noto"}},
+		{"malformada: escape inválido", "postgres://noto:" + secretDBPass + "%zz@localhost/noto", secretDBPass, nil},
+		{"malformada: porta inválida", "postgres://noto:" + secretDBPass + "/x@localhost/noto", secretDBPass, nil},
+		{"formato chave=valor", "host=localhost dbname=noto password=" + secretDBPass, secretDBPass, nil},
+		{"vazia", "", "", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := sensitiveConfig()
+			c.DatabaseURL = tt.url
+			for form, got := range renderings(t, c) {
+				if tt.leak != "" && strings.Contains(got, tt.leak) {
+					t.Errorf("%s vaza %q: %s", form, tt.leak, got)
+				}
+			}
+			var b bytes.Buffer
+			slog.New(slog.NewJSONHandler(&b, nil)).Info("x", "config", c)
+			for _, k := range tt.keep {
+				if !strings.Contains(b.String(), k) {
+					t.Errorf("deveria conservar %q: %s", k, b.String())
+				}
+			}
+		})
 	}
 }
