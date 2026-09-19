@@ -1,0 +1,24 @@
+# binários
+/bin/
+/noto
+*.exe
+
+# Go
+*.test
+*.out
+coverage.*
+vendor/
+
+# segredos e config local
+.env
+.env.*
+!.env.example
+
+# eval: resultados são artefatos, os casos são versionados
+/evals/results/
+
+# editores / SO
+.idea/
+.vscode/
+*.swp
+.DS_Store
