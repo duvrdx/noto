@@ -12,7 +12,7 @@ O critério de pronto é modesto e verificável por máquina: **compila, sobe co
 
 ### Dentro
 
-1. `go.mod` com o módulo `github.com/duvrdx/noto` (derivado do remoto `origin`) e a diretiva `go 1.22` — o mínimo declarado pelo ADR 0001, decidido pelo usuário.
+1. `go.mod` com o módulo `github.com/duvrdx/noto` (derivado do remoto `origin`) e a diretiva `go 1.22` — o mínimo declarado pelo ADR 0001, decidido pelo usuário. *Atualização (2026-09-19): o piso do módulo subiu de `go 1.22` para `go 1.26.0` por decisão do usuário, para corrigir GO-2026-5004 (pgx, SQL injection) e GO-2026-5970 (x/text, laço infinito) — ver o commit `chore(deps): eleva piso do Go para 1.26 e corrige vulnerabilidades`.*
 2. `cmd/noto/` — binário único com os subcomandos `serve`, `worker` e `migrate` (ADR 0001, PRD §8.1). Os três iniciam, leem configuração, logam e encerram por sinal. Nenhum deles faz trabalho de domínio ainda.
 3. Árvore de pacotes `internal/core`, `internal/app`, `internal/adapters`, `internal/platform` conforme PRD §8.2 e `architecture.md` §10.
 4. `docker-compose.yml` — `postgres:16` com `pg_trgm` habilitado e `grafana/otel-lgtm` (PRD §8.3 e §10), mais os serviços `serve` e `worker` como processos distintos coordenando apenas pelo banco (ADR 0001). Postgres publicado no host em `5432`, `serve` em `8080`; dentro da rede do Compose, `DATABASE_URL` e `OTEL_EXPORTER_OTLP_ENDPOINT` são sobrescritos para os hosts `postgres` e `lgtm`, sem alterar o `.env.example`.
@@ -79,7 +79,7 @@ A task 0.1 executa isso e permanece `owner: human`: é a inauguração do histó
 
 ## Outras decisões do usuário incorporadas
 
-- **Diretiva `go` do `go.mod`: `go 1.22`** — o piso do ADR 0001, não a versão do toolchain instalado.
+- **Diretiva `go` do `go.mod`: `go 1.22`** — o piso do ADR 0001, não a versão do toolchain instalado. *Atualização (2026-09-19): o piso do módulo subiu de `go 1.22` para `go 1.26.0` por decisão do usuário, para corrigir GO-2026-5004 (pgx, SQL injection) e GO-2026-5970 (x/text, laço infinito) — ver o commit `chore(deps): eleva piso do Go para 1.26 e corrige vulnerabilidades`.*
 - **Convenção de commit:** Conventional Commits com escopo, e toda mensagem terminando com `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
 - **Portas do Compose:** Postgres publicado no host em `5432`, `serve` em `8080`.
 - **Variáveis obrigatórias:** no scaffolding, apenas `DATABASE_URL`. Um `.env` recém-copiado de `.env.example`, com um `DATABASE_URL` válido, sobe o `serve` — `TELEGRAM_BOT_TOKEN` vazio só passa a ser impeditivo no M1.

@@ -51,3 +51,7 @@ Bibliotecas: `net/http` com o `ServeMux` do Go 1.22+, `pgx` + `sqlc`, `goose`, `
 - Deploy é acoplado: uma mudança no parser reinicia também o scheduler. Aceitável na escala atual.
 - A fronteira arquitetural depende de disciplina, e disciplina erode. **Mitigação:** teste de arquitetura no CI que falha se `internal/core/...` importar `pgx`, `telegram` ou `ollama`. O Princípio 4 do PRD vira verificação automatizada, não boa intenção.
 - A validação real da fronteira só virá com o segundo canal, na v2.
+
+## Atualização (2026-09-19) — piso do módulo
+
+O `ServeMux` com método e path params (Go 1.22+) continua sendo a razão de não haver framework web, mas **o piso da diretiva `go` do módulo não é mais 1.22: é 1.26** (`go 1.26.0`). O Noto é uma aplicação, não uma biblioteca: quem o compila usa o toolchain do projeto, então um piso baixo não beneficia ninguém. E ele custava caro: fixar `go 1.22` obrigava a travar `pgx v5.7.4` e `x/text v0.21.0`, versões com vulnerabilidades que o código chama (GO-2026-5004, SQL injection no pgx, corrigida na 5.9.2; GO-2026-5970, laço infinito no x/text, corrigida na 0.39), cujas correções exigem Go 1.25/1.26. Decisão do usuário: subir o piso e atualizar as dependências (`pgx v5.11.0`, `goose v3.28.0`, `x/text v0.42.0`).

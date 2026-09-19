@@ -14,7 +14,7 @@ export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH
 
 **Decisão: o export vive no `Makefile`, não no perfil do shell.** O `Makefile` define `PATH` internamente, de modo que `make build`/`test`/`lint`/`migrate` funcionem num shell limpo. Alterar o `~/.zshrc` do usuário seria mudar a máquina dele para acomodar um repositório — o repositório é que deve se bastar. *Consequência aceita:* comandos `go` avulsos, fora do `make`, continuam exigindo o export manual; por isso ele está também no `tasks.md` e no `README.md`.
 
-A diretiva do `go.mod` é **`go 1.22`** — o piso do ADR 0001 — e não a versão do toolchain. Toolchain novo compilando diretiva antiga é o caso normal do Go; subir a diretiva só fecharia a porta a quem tem Go mais antigo, sem ganho nesta entrega.
+A diretiva do `go.mod` é **`go 1.22`** — o piso do ADR 0001 — e não a versão do toolchain. Toolchain novo compilando diretiva antiga é o caso normal do Go; subir a diretiva só fecharia a porta a quem tem Go mais antigo, sem ganho nesta entrega. *Atualização (2026-09-19): o piso do módulo subiu de `go 1.22` para `go 1.26.0` por decisão do usuário, para corrigir GO-2026-5004 (pgx, SQL injection) e GO-2026-5970 (x/text, laço infinito) — ver o commit `chore(deps): eleva piso do Go para 1.26 e corrige vulnerabilidades`.*
 
 ## 2. Entrypoint e subcomandos
 
