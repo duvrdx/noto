@@ -1,0 +1,13 @@
+# Configuração do sqlc (ADR 0001: SQL à mão, sem ORM).
+# Regenerar: `sqlc generate`. O código gerado em internal/adapters/postgres/db/
+# é versionado (convenção do sqlc); nunca o edite à mão, regenere-o.
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "migrations/"
+    queries: "internal/adapters/postgres/queries/"
+    gen:
+      go:
+        package: "db"
+        out: "internal/adapters/postgres/db"
+        sql_package: "pgx/v5"

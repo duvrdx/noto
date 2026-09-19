@@ -90,7 +90,7 @@ serve:
 
 **Decisão: `goose` embutido como biblioteca no subcomando `migrate`, com as migrações em `embed.FS`.** O ADR 0001 diz "embutível no binário"; embutir agora evita que o binário de produção dependa de um arquivo no disco do host ou de um binário `goose` instalado lá. `make migrate` chama `noto migrate`, então há um caminho só, não dois.
 
-`sqlc.yaml`: engine `postgresql`, `sql_package: pgx/v5`, schema apontando para `migrations/`, queries para `internal/adapters/postgres/queries/`, saída em `internal/adapters/postgres/db/`. Com zero queries a geração é um no-op válido — o que é o suficiente para provar que a configuração está certa antes de haver query.
+`sqlc.yaml`: engine `postgresql`, `sql_package: pgx/v5`, schema apontando para `migrations/`, queries para `internal/adapters/postgres/queries/`, saída em `internal/adapters/postgres/db/`. O `sqlc` v1.31.1 **recusa zero queries** (`no queries contained in paths`, mesmo com um `.sql` só de comentário), então o scaffolding inclui a query real `Ping` (`SELECT 1`), que servirá depois a um readiness check. O código gerado é versionado em `internal/adapters/postgres/db/` e a prova de que a configuração está certa é `sqlc generate` sair com sucesso e `go build ./...` compilar o resultado. O `sqlc` ignora o bloco `-- +goose Down` do schema.
 
 ## 7. Makefile
 
@@ -132,6 +132,9 @@ Makefile
 sqlc.yaml
 .github/workflows/ci.yml
 migrations/00001_enable_pg_trgm.sql
+migrations/embed.go               (go:embed não alcança diretórios pais; ver task 5.2)
+internal/adapters/postgres/queries/ping.sql
+internal/adapters/postgres/db/    (código gerado pelo sqlc, versionado)
 cmd/noto/main.go
 cmd/noto/serve.go
 cmd/noto/worker.go

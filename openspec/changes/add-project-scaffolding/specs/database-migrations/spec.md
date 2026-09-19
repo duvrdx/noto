@@ -36,10 +36,16 @@ A migração inicial SHALL criar a extensão `pg_trgm`, de que depende a resolu�
 
 ### Requirement: Geração de código com sqlc configurada
 
-O repositório SHALL conter um `sqlc.yaml` apontando para `migrations/` como fonte de schema e para o diretório de queries do adapter Postgres, gerando código com o driver `pgx` (ADR 0001 — SQL à mão, sem ORM). A configuração SHALL ser válida mesmo sem nenhuma query ainda presente.
+O repositório SHALL conter um `sqlc.yaml` apontando para `migrations/` como fonte de schema e para o diretório de queries do adapter Postgres, gerando código com o driver `pgx` (ADR 0001 — SQL à mão, sem ORM). O `sqlc` (v1.31.1) recusa uma configuração sem nenhuma query (`no queries contained in paths`), portanto o scaffolding SHALL incluir ao menos uma query real, `Ping` (`SELECT 1`), que servirá depois a um readiness check. `sqlc generate` SHALL terminar com sucesso e o código gerado, versionado em `internal/adapters/postgres/db/`, SHALL compilar contra a versão de `pgx` do `go.mod`. O `sqlc` SHALL ignorar o bloco `-- +goose Down` ao ler o schema.
 
-#### Scenario: Geração roda com zero queries
+#### Scenario: Geração roda e o código compila
 
-- **Given** o repositório provisionado, sem nenhum arquivo de query
+- **Given** o repositório provisionado, com a query `Ping` em `internal/adapters/postgres/queries/`
+- **When** `sqlc generate` roda e em seguida `go build ./...`
+- **Then** ambos encerram com sucesso e o código gerado compila
+
+#### Scenario: Diretório de queries sem nenhuma query é recusado pelo sqlc
+
+- **Given** o diretório de queries sem nenhum arquivo de query
 - **When** `sqlc generate` roda
-- **Then** o comando encerra com sucesso e não produz erro de configuração
+- **Then** o `sqlc` falha com `no queries contained in paths`, e é por isso que a query `Ping` existe
