@@ -35,7 +35,7 @@ Nenhuma task abaixo produz código. Todas instalam ou verificam software na máq
 ## 2. Módulo e árvore de pacotes
 
 - [x] 2.1 Criar `go.mod` para o módulo `github.com/duvrdx/noto` (caminho derivado do remoto `origin`, não inventado) com a diretiva **`go 1.22`** — o piso do ADR 0001, decidido pelo usuário (*Decisões tomadas* item 3). O toolchain 1.27.1 instalado compila isso sem problema; a diretiva **não** deve ser elevada para a versão do toolchain. Arquivos: `go.mod`. Sem teste próprio. Verificação: `go build ./...` (trivialmente verde, sem pacotes ainda) e `grep '^go 1.22' go.mod`. Commit: `chore(build): inicializa módulo Go`. (owner: agent)
-- [ ] 2.2 Criar a árvore de pacotes de `design.md` §9 — `internal/core/{item,revision,resolve,timex,ports}`, `internal/app`, `internal/adapters/{telegram,ollama,postgres,otel}`, `internal/platform/{config,logging,http,migrations}` — cada diretório com um `doc.go` declarando o pacote e uma linha dizendo o que ele vai conter, conforme PRD §8.2. Sem teste próprio. Verificação: `go build ./...` compila todos os pacotes; `go vet ./...` limpo. Commit: `chore(layout): cria árvore de pacotes do PRD §8.2`. (owner: agent)
+- [x] 2.2 Criar a árvore de pacotes de `design.md` §9 — `internal/core/{item,revision,resolve,timex,ports}`, `internal/app`, `internal/adapters/{telegram,ollama,postgres,otel}`, `internal/platform/{config,logging,http,migrations}` — cada diretório com um `doc.go` declarando o pacote e uma linha dizendo o que ele vai conter, conforme PRD §8.2. Sem teste próprio. Verificação: `go build ./...` compila todos os pacotes; `go vet ./...` limpo. Commit: `chore(layout): cria árvore de pacotes do PRD §8.2`. (owner: agent)
 
 ## 3. Configuração e logging
 
