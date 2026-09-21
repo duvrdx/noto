@@ -3,3 +3,22 @@
 //   sqlc v1.31.1
 
 package db
+
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Message struct {
+	ID               pgtype.UUID
+	UserID           pgtype.UUID
+	TelegramUpdateID int64
+	ChatID           int64
+	RawText          string
+	ReceivedAt       pgtype.Timestamptz
+}
+
+type User struct {
+	ID             pgtype.UUID
+	TelegramUserID int64
+	CreatedAt      pgtype.Timestamptz
+}
