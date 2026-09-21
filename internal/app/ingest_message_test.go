@@ -561,11 +561,18 @@ func TestFailureLogsCarryClassificationAndIdentifiers(t *testing.T) {
 				t.Fatal("deveria falhar")
 			}
 
-			entries := logs.entries(t)
-			if len(entries) != 1 {
-				t.Fatalf("esperava 1 log, veio %d:\n%s", len(entries), logs)
+			// O log da falha é o único com "classe" (o envio falha depois de
+			// a mensagem nova ser registrada, que tem o seu próprio log).
+			var failures []map[string]any
+			for _, e := range logs.entries(t) {
+				if e["classe"] != nil {
+					failures = append(failures, e)
+				}
 			}
-			e := entries[0]
+			if len(failures) != 1 {
+				t.Fatalf("esperava 1 log de falha, veio %d:\n%s", len(failures), logs)
+			}
+			e := failures[0]
 			if e["classe"] != tt.classe {
 				t.Errorf("classe = %v, want %q", e["classe"], tt.classe)
 			}
