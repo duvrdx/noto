@@ -133,6 +133,21 @@ func TestIngestEndToEnd(t *testing.T) {
 		t.Errorf("users = %d, want 1", n)
 	}
 
+	// A reentrega é reconhecida como duplicada (log próprio, com o update_id) e
+	// não é tratada como falha.
+	var dupLogged bool
+	for _, entry := range e.logs.entries(t) {
+		if entry["msg"] == "mensagem duplicada ignorada" && entry["update_id"] == float64(500) {
+			dupLogged = true
+		}
+		if entry["level"] == "ERROR" {
+			t.Errorf("a reentrega não deveria gerar log de erro: %v", entry)
+		}
+	}
+	if !dupLogged {
+		t.Errorf("faltou o log de mensagem duplicada com update_id 500:\n%s", e.logs.String())
+	}
+
 	// (f) grupo e foto: descartados, sem linha e sem resposta; o poller segue.
 	e.fake.Enqueue(
 		tgfake.ChatTextUpdate(502, -100, 42, "group", e2eMarker+"-grupo"),
@@ -190,10 +205,14 @@ func TestIngestEndToEnd(t *testing.T) {
 	}
 }
 
-// Encerramento: com um update no meio (preso numa escrita no banco), o
-// cancelamento NÃO fecha o pool: o serve só retorna depois de o update
-// terminar, e o update termina com sucesso (linha gravada e eco enviado).
-func TestServeShutdownWaitsForInFlightUpdateBeforeClosingThePool(t *testing.T) {
+// Encerramento: com um update no meio (preso numa escrita no banco), o serve
+// só retorna depois de o update terminar, e o update termina com sucesso
+// (linha gravada e eco enviado). O pool só é fechado depois disso: serveIngest
+// não retorna antes de o polling e o HTTP terminarem. (Fechar o pool antes não
+// derrubaria este update em particular, porque pgxpool.Close espera as
+// conexões em uso; o que este teste garante é a espera, que é o que evita
+// perder o update que ainda vai precisar do pool.)
+func TestServeShutdownWaitsForInFlightUpdate(t *testing.T) {
 	pool := testdb.Pool(t)
 	dsn := pool.Config().ConnString()
 	fake := tgfake.New(t, e2eToken)

@@ -21,14 +21,23 @@ const (
 	shutdownTimeout   = 10 * time.Second
 )
 
-// runServe sobe o servidor HTTP em httpAddr e só retorna quando o contexto
-// cai (nil) ou o servidor falha. Não depende do worker.
-func runServe(ctx context.Context, _ config.Config, log *slog.Logger) error {
+// runServe é o modo serve: recebe do Telegram por long polling, persiste e
+// responde (serveIngest), e atende GET /healthz em httpAddr. Só o transporte
+// polling é suportado neste marco; o webhook é recusado antes de qualquer
+// E/S (banco, rede ou porta). Só retorna quando o contexto cai (nil) ou algo
+// falha. Não depende do worker.
+func runServe(ctx context.Context, cfg config.Config, log *slog.Logger) error {
+	if cfg.TelegramTransport != config.TransportPolling {
+		return fmt.Errorf("TELEGRAM_TRANSPORT=%q não é suportado neste marco: só %q por enquanto",
+			cfg.TelegramTransport, config.TransportPolling)
+	}
 	ln, err := net.Listen("tcp", httpAddr)
 	if err != nil {
 		return fmt.Errorf("escutar em %s: %w", httpAddr, err)
 	}
-	return serve(ctx, ln, log)
+	// Se a subida falhar antes de o servidor HTTP assumir o listener, ele não vaza.
+	defer ln.Close()
+	return serveIngest(ctx, cfg, ln, "", log)
 }
 
 // newServeMux devolve as rotas do serve, com o ServeMux da stdlib (ADR 0001).
