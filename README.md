@@ -20,7 +20,7 @@ Sem abrir app, sem date picker, sem preencher cinco campos — e sem "tem certez
 
 ## Estado
 
-🚧 **M0 — documentação e decisões.** Sem código de aplicação ainda.
+🚧 **Base pronta, produto ainda não.** A documentação (M0) e o scaffolding estão feitos: o binário sobe, valida configuração e responde `/healthz`, com Postgres, migrações, CI e uma fronteira arquitetural verificada por teste. **O bot ainda não responde no Telegram** — isso é o M1.
 
 | Marco | Status |
 |---|---|
@@ -58,7 +58,33 @@ Go · PostgreSQL · Ollama (Cloud → local) · Telegram · OpenTelemetry · Doc
 
 ## Rodando localmente
 
-Em desenvolvimento o bot usa **long polling** — sem túnel, sem domínio, sem HTTPS. Basta um token de bot e `docker compose up`. Ver [ADR 0008](docs/adr/0008-transporte-telegram-e-deploy.md).
+> **O que você verá hoje:** o ambiente sobe e o `serve` responde `GET /healthz`. O bot **não responde no Telegram ainda** — o adapter chega no M1. `TELEGRAM_BOT_TOKEN` é opcional por enquanto e passa a ser obrigatório no M1.
+
+**Pré-requisitos:** Docker com Compose v2 e Go 1.26+. Para `make lint`, o `staticcheck` precisa estar instalado (`go install honnef.co/go/tools/cmd/staticcheck@2026.2.1`).
+
+```sh
+cp .env.example .env            # único passo manual; .env é gitignored
+docker compose up -d --build    # postgres, grafana/otel-lgtm, serve e worker
+make migrate                    # habilita a extensão pg_trgm (idempotente)
+curl -sf localhost:8080/healthz # 200 OK
+```
+
+Verificação e encerramento:
+
+```sh
+make test                       # go test -race ./...
+make lint                       # go vet + staticcheck
+make eval-resolve               # eixo determinístico do eval (hoje sem cenários)
+docker compose down             # preserva o volume do Postgres; `down -v` apaga os dados
+```
+
+**Portas.** Todas publicadas **apenas em `127.0.0.1`**, porque o Compose usa credenciais de desenvolvimento (`noto`/`noto`): `8080` (serve), `5432` (Postgres), `3000` (Grafana), `4317` e `4318` (OTLP). Em produção a exposição é por proxy reverso.
+
+**Go fora do `PATH`.** O `Makefile` exporta `/usr/local/go/bin` e `$HOME/go/bin` internamente, então os alvos `make` funcionam mesmo num shell onde `go` não é encontrado. Comandos `go` avulsos precisam dele no seu `PATH`.
+
+**Transporte do Telegram.** Em desenvolvimento o bot usa **long polling** — sem túnel, sem domínio, sem HTTPS (`TELEGRAM_TRANSPORT=polling`). O webhook é de produção. Ver [ADR 0008](docs/adr/0008-transporte-telegram-e-deploy.md).
+
+**Segredos.** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` e `OLLAMA_API_KEY` ficam só no `.env` local. O `.env.example` é versionado e mantém esses valores vazios.
 
 ## Privacidade
 
