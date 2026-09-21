@@ -216,6 +216,7 @@ func TestRunInvalidLogLevelExitsNonZeroNamingVariable(t *testing.T) {
 }
 
 func TestDefaultCLIInvalidLogLevelExitsNonZero(t *testing.T) {
+	t.Setenv("TELEGRAM_BOT_TOKEN", "tok-sentinela-main")
 	t.Setenv("DATABASE_URL", "postgres://localhost/noto")
 	t.Setenv("LOG_LEVEL", "banana")
 	var stdout, stderr bytes.Buffer

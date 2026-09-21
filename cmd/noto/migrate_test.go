@@ -28,6 +28,7 @@ func closedAddr(t *testing.T) string {
 // (código != 0), sem panic e sem a senha do DSN em stderr nem em stdout.
 func TestMigrateUnreachableDatabaseFailsClearlyWithoutLeakingPassword(t *testing.T) {
 	const pass = "s3cr3t-dbpass"
+	t.Setenv("TELEGRAM_BOT_TOKEN", "tok-sentinela-migrate")
 	t.Setenv("DATABASE_URL", "postgres://noto:"+pass+"@"+closedAddr(t)+"/noto?sslmode=disable")
 	var stdout, stderr bytes.Buffer
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

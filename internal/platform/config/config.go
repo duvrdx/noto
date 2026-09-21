@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 	_ "time/tzdata" // fuso IANA carregável mesmo em imagem sem tzdata do SO
 )
@@ -31,7 +32,9 @@ type Config struct {
 // Load lê o ambiente, aplica defaults e valida. Em caso de problema devolve
 // um único erro que cita todas as variáveis reprovadas, não só a primeira.
 //
-// No scaffolding só DATABASE_URL é incondicionalmente obrigatória;
+// DATABASE_URL e TELEGRAM_BOT_TOKEN são incondicionalmente obrigatórias (o
+// token, depois de strings.TrimSpace, não pode ser vazio; o formato não é
+// validado, e o valor nunca entra na mensagem de erro).
 // TELEGRAM_WEBHOOK_SECRET é obrigatória apenas com TELEGRAM_TRANSPORT=webhook.
 // Variável definida como string vazia equivale a não definida.
 func Load() (Config, error) {
@@ -49,6 +52,9 @@ func Load() (Config, error) {
 	}
 
 	var errs []error
+	if strings.TrimSpace(c.TelegramBotToken) == "" {
+		errs = append(errs, errors.New("TELEGRAM_BOT_TOKEN: obrigatória e não definida"))
+	}
 	if c.DatabaseURL == "" {
 		errs = append(errs, errors.New("DATABASE_URL: obrigatória e não definida"))
 	}
