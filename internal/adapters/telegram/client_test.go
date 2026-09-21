@@ -82,7 +82,6 @@ func captureGlobalLog(t *testing.T) {
 type recorder struct {
 	mu      sync.Mutex
 	calls   []message.Incoming
-	starts  int
 	inside  atomic.Int32 // chamadas em andamento
 	maxSeen atomic.Int32 // maior sobreposição observada
 	ctxErrs []error      // ctx.Err() de cada chamada, no início
@@ -102,7 +101,6 @@ func (r *recorder) handle(ctx context.Context, in message.Incoming) error {
 	defer r.inside.Add(-1)
 
 	r.mu.Lock()
-	r.starts++
 	r.ctxErrs = append(r.ctxErrs, ctx.Err())
 	r.mu.Unlock()
 
@@ -121,12 +119,6 @@ func (r *recorder) done() []message.Incoming {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return slices.Clone(r.calls)
-}
-
-func (r *recorder) started() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.starts
 }
 
 func (r *recorder) ids() []int64 {
