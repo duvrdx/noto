@@ -276,21 +276,42 @@ func moduleRoot(t *testing.T) string {
 	}
 }
 
+// Este arquivo mora em internal/core, mas guarda também internal/app: a
+// fronteira do ADR 0001 (PRD §8.2) vale para o domínio e para os casos de uso,
+// e um segundo teste de fronteira, com a mesma lista de proibições, seria uma
+// segunda cópia dela para manter. Casos de uso falam com o exterior só por
+// portas (internal/core/ports).
+
 // TestCoreDoesNotDependOnInfrastructure carrega a árvore real de
 // ./internal/core/... e falha se qualquer pacote, direta ou transitivamente,
 // importar infraestrutura, reportando a cadeia completa.
 //
 // Tests: true, então os _test.go de core também entram: o domínio é puro
-// inclusive nos testes. O custo é ver as variantes de teste dos pacotes; elas
-// são unidas por caminho de import, e o binário sintético "*.test" é ignorado
-// como raiz.
+// inclusive nos testes.
 func TestCoreDoesNotDependOnInfrastructure(t *testing.T) {
+	checkBoundary(t, "./internal/core/...", true)
+}
+
+// TestAppDoesNotDependOnInfrastructure faz o mesmo para ./internal/app/...,
+// mas só com o código de produção (Tests: false): os _test.go de app podem
+// importar adapters para montar o cenário (por exemplo o repositório real do
+// Postgres), e a spec architecture-boundary diz que isso passa.
+func TestAppDoesNotDependOnInfrastructure(t *testing.T) {
+	checkBoundary(t, "./internal/app/...", false)
+}
+
+// checkBoundary carrega os pacotes de pattern e falha se algum importar,
+// direta ou transitivamente, um pacote proibido. Com tests, as variantes de
+// teste dos pacotes entram; elas são unidas por caminho de import, e o binário
+// sintético "*.test" é ignorado como raiz.
+func checkBoundary(t *testing.T, pattern string, tests bool) {
+	t.Helper()
 	cfg := &packages.Config{
 		Mode:  packages.NeedName | packages.NeedImports | packages.NeedDeps,
 		Dir:   moduleRoot(t),
-		Tests: true,
+		Tests: tests,
 	}
-	pkgs, err := packages.Load(cfg, "./internal/core/...")
+	pkgs, err := packages.Load(cfg, pattern)
 	if err != nil {
 		t.Fatalf("packages.Load: %v", err)
 	}
@@ -316,11 +337,11 @@ func TestCoreDoesNotDependOnInfrastructure(t *testing.T) {
 		roots = append(roots, p.PkgPath)
 	}
 	if len(roots) == 0 {
-		t.Fatal("nenhum pacote carregado sob ./internal/core/...: o teste passaria no vazio")
+		t.Fatalf("nenhum pacote carregado sob %s: o teste passaria no vazio", pattern)
 	}
 
 	for _, v := range findViolations(graph, roots) {
-		t.Errorf("%s importa %s, proibido em core:\n    %s",
-			v.root, v.forbidden, strings.Join(v.chain, "\n      -> "))
+		t.Errorf("%s importa %s, proibido na fronteira (%s):\n    %s",
+			v.root, v.forbidden, pattern, strings.Join(v.chain, "\n      -> "))
 	}
 }
