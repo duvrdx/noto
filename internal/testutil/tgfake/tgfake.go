@@ -81,6 +81,8 @@ type Server struct {
 	allowed        []string
 	sent           []Sent
 	getUpdatesHits int
+	getUpdatesAt   []time.Time
+	attempts       map[string]int
 	nextMessageID  int
 }
 
@@ -88,10 +90,11 @@ type Server struct {
 func New(t testing.TB, token string) *Server {
 	t.Helper()
 	s := &Server{
-		token:   token,
-		closed:  make(chan struct{}),
-		wake:    make(chan struct{}, 1),
-		replies: map[string][]Reply{},
+		token:    token,
+		closed:   make(chan struct{}),
+		wake:     make(chan struct{}, 1),
+		replies:  map[string][]Reply{},
+		attempts: map[string]int{},
 	}
 	s.srv = httptest.NewServer(http.HandlerFunc(s.handle))
 	s.URL = s.srv.URL
@@ -160,6 +163,23 @@ func (s *Server) GetUpdatesCalls() int {
 	return s.getUpdatesHits
 }
 
+// Attempts devolve quantas chamadas ao método chegaram ao fake, inclusive as
+// que receberam uma resposta roteirizada de erro (serve a provar "sem
+// retentativa").
+func (s *Server) Attempts(method string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.attempts[method]
+}
+
+// GetUpdatesTimes devolve o instante em que cada consulta a getUpdates chegou
+// (serve a observar a espera crescente do cliente depois de erros).
+func (s *Server) GetUpdatesTimes() []time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]time.Time(nil), s.getUpdatesAt...)
+}
+
 // Eventually espera cond ficar verdadeira até o prazo, sem sleep fixo na
 // asserção; falha o teste com msg se estourar.
 func Eventually(t testing.TB, timeout time.Duration, cond func() bool, msg string) {
@@ -213,6 +233,10 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.mu.Lock()
+	s.attempts[method]++
+	s.mu.Unlock()
+
 	if reply, ok := s.popReply(method); ok {
 		if reply.hangup {
 			s.hangup(w)
@@ -256,6 +280,7 @@ func (s *Server) getUpdates(w http.ResponseWriter, r *http.Request) {
 	offset, _ := strconv.ParseInt(r.FormValue("offset"), 10, 64)
 	s.mu.Lock()
 	s.getUpdatesHits++
+	s.getUpdatesAt = append(s.getUpdatesAt, time.Now())
 	s.offsets = append(s.offsets, offset)
 	s.allowed = append(s.allowed, r.FormValue("allowed_updates"))
 	s.mu.Unlock()

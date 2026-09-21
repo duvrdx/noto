@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"slices"
 	"strings"
 	"sync"
@@ -146,6 +147,18 @@ func newClientFor(t *testing.T, fake *tgfake.Server, logs *syncBuffer) (*telegra
 		APIBaseURL: fake.URL,
 		Log:        slog.New(slog.NewJSONHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
 	})
+}
+
+// closedURL devolve a URL de um endereço de loopback em que ninguém escuta.
+func closedURL(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	ln.Close()
+	return "http://" + addr
 }
 
 func start(t *testing.T, rec *recorder) *harness {
