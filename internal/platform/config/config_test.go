@@ -52,11 +52,15 @@ func setEnv(t *testing.T, env map[string]string) {
 
 const validDB = "postgres://noto:noto@localhost:5432/noto?sslmode=disable"
 
+// validTok é um token sentinela: nunca o real. O formato não é validado.
+const validTok = "s3cr3t-token"
+
 func TestLoad(t *testing.T) {
 	tests := []struct {
 		name    string
 		env     map[string]string
 		wantErr []string // nomes de variáveis que a mensagem de erro deve citar; vazio = sucesso
+		notErr  []string // valores que a mensagem de erro NÃO pode conter (segredos)
 		check   func(t *testing.T, c config.Config)
 	}{
 		{
@@ -92,8 +96,8 @@ func TestLoad(t *testing.T) {
 			},
 		},
 		{
-			name: "apenas DATABASE_URL: defaults aplicados, opcionais vazios",
-			env:  map[string]string{"DATABASE_URL": validDB},
+			name: "só as obrigatórias: defaults aplicados, opcionais vazios",
+			env:  map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": validTok},
 			check: func(t *testing.T, c config.Config) {
 				if c.LogLevel != "info" {
 					t.Errorf("LogLevel = %q, want info", c.LogLevel)
@@ -107,17 +111,20 @@ func TestLoad(t *testing.T) {
 				if c.OllamaHost != "https://ollama.com" {
 					t.Errorf("OllamaHost = %q, want https://ollama.com", c.OllamaHost)
 				}
-				if c.TelegramBotToken != "" || c.OllamaAPIKey != "" || c.OllamaModel != "" || c.TelegramWebhookSecret != "" {
+				if c.TelegramBotToken != validTok {
+					t.Errorf("TelegramBotToken = %q, want %q", c.TelegramBotToken, validTok)
+				}
+				if c.OllamaAPIKey != "" || c.OllamaModel != "" || c.TelegramWebhookSecret != "" {
 					t.Errorf("opcionais deveriam ser vazios: %+v", c)
 				}
 			},
 		},
 		{
-			// O caso mais importante: um .env copiado do exemplo tem estes
-			// campos vazios (definidos, mas ""), e a carga precisa passar.
-			name: ".env.example recém-copiado com opcionais vazios",
+			// Um .env copiado do exemplo e com o token preenchido: os demais
+			// campos ficam definidos, mas "", e a carga precisa passar.
+			name: ".env com token preenchido e opcionais vazios",
 			env: map[string]string{
-				"TELEGRAM_BOT_TOKEN":          "",
+				"TELEGRAM_BOT_TOKEN":          validTok,
 				"TELEGRAM_TRANSPORT":          "polling",
 				"TELEGRAM_WEBHOOK_SECRET":     "",
 				"OLLAMA_HOST":                 "https://ollama.com",
@@ -132,42 +139,96 @@ func TestLoad(t *testing.T) {
 				if c.TelegramTransport != "polling" || c.DatabaseURL != validDB {
 					t.Errorf("config inesperada: %+v", c)
 				}
-				if c.TelegramBotToken != "" || c.TelegramWebhookSecret != "" || c.OllamaAPIKey != "" || c.OllamaModel != "" {
+				if c.TelegramBotToken != validTok {
+					t.Errorf("TelegramBotToken = %q, want %q", c.TelegramBotToken, validTok)
+				}
+				if c.TelegramWebhookSecret != "" || c.OllamaAPIKey != "" || c.OllamaModel != "" {
 					t.Errorf("opcionais deveriam ser vazios: %+v", c)
 				}
 			},
 		},
 		{
+			// O .env.example cru tem o token vazio: agora é erro, não carga ok.
+			name: ".env.example cru (token vazio)",
+			env: map[string]string{
+				"TELEGRAM_BOT_TOKEN":          "",
+				"TELEGRAM_TRANSPORT":          "polling",
+				"TELEGRAM_WEBHOOK_SECRET":     "",
+				"OLLAMA_HOST":                 "https://ollama.com",
+				"OLLAMA_API_KEY":              "",
+				"OLLAMA_MODEL":                "",
+				"DATABASE_URL":                validDB,
+				"LOG_LEVEL":                   "info",
+				"DEFAULT_TIMEZONE":            "America/Sao_Paulo",
+				"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317",
+			},
+			wantErr: []string{"TELEGRAM_BOT_TOKEN"},
+		},
+		{
+			name:    "TELEGRAM_BOT_TOKEN ausente",
+			env:     map[string]string{"DATABASE_URL": validDB},
+			wantErr: []string{"TELEGRAM_BOT_TOKEN"},
+		},
+		{
+			name:    "TELEGRAM_BOT_TOKEN vazio",
+			env:     map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": ""},
+			wantErr: []string{"TELEGRAM_BOT_TOKEN"},
+		},
+		{
+			name:    "TELEGRAM_BOT_TOKEN só com espaços",
+			env:     map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": "   "},
+			wantErr: []string{"TELEGRAM_BOT_TOKEN"},
+		},
+		{
+			name:    "TELEGRAM_BOT_TOKEN e DATABASE_URL ausentes numa só mensagem",
+			env:     map[string]string{},
+			wantErr: []string{"TELEGRAM_BOT_TOKEN", "DATABASE_URL"},
+		},
+		{
+			// O valor do token nunca vai para a mensagem: aqui a carga reprova
+			// por outra variável, com um token sentinela definido.
+			name:    "valor do token fora da mensagem de erro",
+			env:     map[string]string{"TELEGRAM_BOT_TOKEN": validTok},
+			wantErr: []string{"DATABASE_URL"},
+			notErr:  []string{validTok},
+		},
+		{
+			name:    "valor do token fora da mensagem com transporte inválido",
+			env:     map[string]string{"TELEGRAM_BOT_TOKEN": validTok, "DATABASE_URL": validDB, "TELEGRAM_TRANSPORT": "carrier-pigeon"},
+			wantErr: []string{"TELEGRAM_TRANSPORT"},
+			notErr:  []string{validTok},
+		},
+		{
 			name: "variável fora do conjunto é ignorada",
-			env:  map[string]string{"DATABASE_URL": validDB, "NOTO_VARIAVEL_DESCONHECIDA": "x"},
+			env:  map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": validTok, "NOTO_VARIAVEL_DESCONHECIDA": "x"},
 		},
 		{
 			name:    "DATABASE_URL ausente",
-			env:     map[string]string{},
+			env:     map[string]string{"TELEGRAM_BOT_TOKEN": validTok},
 			wantErr: []string{"DATABASE_URL"},
 		},
 		{
 			name:    "DATABASE_URL vazia",
-			env:     map[string]string{"DATABASE_URL": ""},
+			env:     map[string]string{"DATABASE_URL": "", "TELEGRAM_BOT_TOKEN": validTok},
 			wantErr: []string{"DATABASE_URL"},
 		},
 		{
 			name:    "TELEGRAM_TRANSPORT inválido",
-			env:     map[string]string{"DATABASE_URL": validDB, "TELEGRAM_TRANSPORT": "carrier-pigeon"},
+			env:     map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": validTok, "TELEGRAM_TRANSPORT": "carrier-pigeon"},
 			wantErr: []string{"TELEGRAM_TRANSPORT", "polling", "webhook"},
 		},
 		{
 			name:    "webhook sem TELEGRAM_WEBHOOK_SECRET",
-			env:     map[string]string{"DATABASE_URL": validDB, "TELEGRAM_TRANSPORT": "webhook"},
+			env:     map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": validTok, "TELEGRAM_TRANSPORT": "webhook"},
 			wantErr: []string{"TELEGRAM_WEBHOOK_SECRET"},
 		},
 		{
 			name: "webhook com TELEGRAM_WEBHOOK_SECRET",
-			env:  map[string]string{"DATABASE_URL": validDB, "TELEGRAM_TRANSPORT": "webhook", "TELEGRAM_WEBHOOK_SECRET": "sec"},
+			env:  map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": validTok, "TELEGRAM_TRANSPORT": "webhook", "TELEGRAM_WEBHOOK_SECRET": "sec"},
 		},
 		{
 			name:    "DEFAULT_TIMEZONE inválido",
-			env:     map[string]string{"DATABASE_URL": validDB, "DEFAULT_TIMEZONE": "Mars/Olympus_Mons"},
+			env:     map[string]string{"DATABASE_URL": validDB, "TELEGRAM_BOT_TOKEN": validTok, "DEFAULT_TIMEZONE": "Mars/Olympus_Mons"},
 			wantErr: []string{"DEFAULT_TIMEZONE"},
 		},
 		{
@@ -176,7 +237,7 @@ func TestLoad(t *testing.T) {
 				"TELEGRAM_TRANSPORT": "carrier-pigeon",
 				"DEFAULT_TIMEZONE":   "Mars/Olympus_Mons",
 			},
-			wantErr: []string{"DATABASE_URL", "TELEGRAM_TRANSPORT", "DEFAULT_TIMEZONE"},
+			wantErr: []string{"TELEGRAM_BOT_TOKEN", "DATABASE_URL", "TELEGRAM_TRANSPORT", "DEFAULT_TIMEZONE"},
 		},
 	}
 
@@ -193,6 +254,11 @@ func TestLoad(t *testing.T) {
 				for _, name := range tt.wantErr {
 					if !strings.Contains(err.Error(), name) {
 						t.Errorf("erro %q não cita %q", err.Error(), name)
+					}
+				}
+				for _, secret := range tt.notErr {
+					if strings.Contains(err.Error(), secret) {
+						t.Errorf("erro vaza %q: %q", secret, err.Error())
 					}
 				}
 				return
