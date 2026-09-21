@@ -39,7 +39,17 @@ func TestTxHasMigrationsAndExtension(t *testing.T) {
 	if !versions {
 		t.Error("tabela goose_db_version ausente: as migrações não passaram por platform/migrations.Up")
 	}
-	// A checagem de users/messages entra com a migração 00002 (task 4.2).
+
+	// Migrações do M1 (00002): as tabelas de domínio existem.
+	for _, table := range []string{"users", "messages"} {
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Errorf("tabela %s ausente: a migração 00002 não foi aplicada", table)
+		}
+	}
 }
 
 func TestServerRunsInUTC(t *testing.T) {

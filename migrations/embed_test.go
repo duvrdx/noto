@@ -21,23 +21,15 @@ func TestFSEmbedsInitialMigration(t *testing.T) {
 	}
 }
 
-// Spec database-migrations: nenhuma tabela do modelo de domínio (PRD §6.2)
-// nasce no scaffolding; elas vêm com o código que as usa.
-func TestNoMigrationCreatesTables(t *testing.T) {
-	entries, err := fs.ReadDir(migrations.FS, ".")
+// Spec database-migrations, cenário "A migração inicial continua sem tabelas":
+// a 00001 só habilita a extensão. As tabelas do M1 vêm na 00002, e as demais
+// com os marcos que as usam; por isso só a 00001 é conferida aqui.
+func TestInitialMigrationCreatesNoTables(t *testing.T) {
+	b, err := fs.ReadFile(migrations.FS, "00001_enable_pg_trgm.sql")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("migração inicial não está embutida: %v", err)
 	}
-	if len(entries) == 0 {
-		t.Fatal("nenhuma migração embutida")
-	}
-	for _, e := range entries {
-		b, err := fs.ReadFile(migrations.FS, e.Name())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(strings.ToUpper(string(b)), "CREATE TABLE") {
-			t.Errorf("%s cria tabela; nenhuma é permitida no scaffolding", e.Name())
-		}
+	if strings.Contains(strings.ToUpper(string(b)), "CREATE TABLE") {
+		t.Error("00001_enable_pg_trgm.sql cria tabela; a migração inicial não pode criar nenhuma")
 	}
 }
