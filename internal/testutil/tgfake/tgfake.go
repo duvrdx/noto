@@ -235,6 +235,14 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.attempts[method]++
+	if method == "getUpdates" {
+		// Toda consulta é gravada, inclusive a que receber uma resposta de erro.
+		offset, _ := strconv.ParseInt(r.FormValue("offset"), 10, 64)
+		s.getUpdatesHits++
+		s.getUpdatesAt = append(s.getUpdatesAt, time.Now())
+		s.offsets = append(s.offsets, offset)
+		s.allowed = append(s.allowed, r.FormValue("allowed_updates"))
+	}
 	s.mu.Unlock()
 
 	if reply, ok := s.popReply(method); ok {
@@ -277,14 +285,6 @@ func (s *Server) hangup(w http.ResponseWriter) {
 }
 
 func (s *Server) getUpdates(w http.ResponseWriter, r *http.Request) {
-	offset, _ := strconv.ParseInt(r.FormValue("offset"), 10, 64)
-	s.mu.Lock()
-	s.getUpdatesHits++
-	s.getUpdatesAt = append(s.getUpdatesAt, time.Now())
-	s.offsets = append(s.offsets, offset)
-	s.allowed = append(s.allowed, r.FormValue("allowed_updates"))
-	s.mu.Unlock()
-
 	batch, ok := s.popBatch()
 	if !ok {
 		// Sem lote: segura a consulta até chegar um, o prazo acabar, o cliente
