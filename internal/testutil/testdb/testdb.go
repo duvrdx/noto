@@ -30,7 +30,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/duvrdx/noto/internal/platform/migrations"
 )
@@ -87,8 +86,10 @@ func start() (s *shared, err error) {
 		// UTC deliberado: suposição vazada sobre o fuso do processo aparece logo.
 		// fsync=off: o banco é descartável.
 		testcontainers.WithCmd("postgres", "-c", "timezone=UTC", "-c", "log_timezone=UTC", "-c", "fsync=off"),
+		// Espera o log de "pronto" duas vezes (o Postgres reinicia depois do
+		// initdb) e a porta. Não substituir por só a porta: ela abre antes de o
+		// servidor aceitar conexões ("the database system is starting up").
 		tcpostgres.BasicWaitStrategies(),
-		testcontainers.WithWaitStrategy(wait.ForListeningPort("5432/tcp")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("subir %s: %w", image, err)
