@@ -100,7 +100,7 @@ Os textos abaixo são a **primeira linha**; a atribuição é obrigatória e nã
 
 ## 10. Ponta a ponta com o bot real
 
-- [ ] 10.1 **Verificação ponta a ponta com o bot real** — só o usuário tem o token e pode enviar a mensagem no Telegram; roteiro de nove passos e critério de aceite nos sub-itens abaixo. Sem commit. (owner: human)
+- [x] 10.1 **Verificação ponta a ponta com o bot real** — só o usuário tem o token e pode enviar a mensagem no Telegram; roteiro de nove passos e critério de aceite nos sub-itens abaixo. Sem commit. (owner: human) *Executada e aprovada pelo usuário em 2026-09-21 (informado por ele; o Claude não observou o teste com o bot real).*
   - Roteiro:
     1. Conferir que o `.env` tem `TELEGRAM_BOT_TOKEN` preenchido e `TELEGRAM_TRANSPORT=polling`. (Não colar o token em lugar nenhum.)
     2. `docker compose up -d --build` e, no host, `make migrate`. Esperado: o log de `migrate` lista `00002_create_users_and_messages.sql` como aplicada; `docker compose ps` mostra `postgres`, `lgtm`, `serve` e `worker` de pé, **sem reinício em laço**.
@@ -112,7 +112,7 @@ Os textos abaixo são a **primeira linha**; a atribuição é obrigatória e nã
     8. `docker compose stop serve`, enviar duas mensagens ao bot com ele parado, `docker compose start serve`. **Esperado:** as duas são processadas **uma vez cada** (uma linha e uma resposta para cada), na ordem em que foram enviadas.
     9. `docker compose stop serve` de novo. **Esperado:** o log termina com o encerramento gracioso e `docker compose ps -a` mostra o `serve` com código de saída `0` (não `137`).
   - **Critério de aceite:** os nove passos com o esperado observado. Reprovação em qualquer passo é defeito do M1 e volta para as seções 5 a 7.
-- [ ] 10.2 Atualizar o `README.md`: "Rodando localmente" com os comandos reais do M1 (incluindo obter o token no `@BotFather`, que `TELEGRAM_BOT_TOKEN` é obrigatório, `make migrate`, e que `make test` agora exige Docker, com `go test -short ./...` como atalho) e marcar **M1 como ✅** na tabela de status. **Só depois de a 10.1 passar.** A redação é texto para humano e não é verificável por teste, por isso é `owner: human`. Verificação: leitura humana; todo comando citado foi executado com sucesso na 10.1. Commit: `docs(readme): M1 concluído e instruções de execução local`. (owner: human)
+- [x] 10.2 Atualizar o `README.md`: "Rodando localmente" com os comandos reais do M1 (incluindo obter o token no `@BotFather`, que `TELEGRAM_BOT_TOKEN` é obrigatório, `make migrate`, e que `make test` agora exige Docker, com `go test -short ./...` como atalho) e marcar **M1 como ✅** na tabela de status. **Só depois de a 10.1 passar.** A redação é texto para humano e não é verificável por teste, por isso é `owner: human`. Verificação: leitura humana; todo comando citado foi executado com sucesso na 10.1. Commit: `docs(readme): M1 concluído e instruções de execução local`. (owner: human) *Redigida pelo Claude a partir dos comandos da 10.1; aplicada depois de o usuário confirmar que a 10.1 passou.*
 
 ---
 
