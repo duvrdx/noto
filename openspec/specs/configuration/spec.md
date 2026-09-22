@@ -49,30 +49,6 @@ A configuração SHALL ser validada no início do processo, antes de qualquer tr
 - **When** a configuração é validada
 - **Then** o processo encerra com uma única mensagem de erro que cita as duas variáveis
 
-### Requirement: No scaffolding, apenas `DATABASE_URL` é obrigatória
-
-Nesta entrega, a única variável **incondicionalmente obrigatória** SHALL ser `DATABASE_URL`. `TELEGRAM_WEBHOOK_SECRET` SHALL ser obrigatória apenas quando `TELEGRAM_TRANSPORT` for `webhook` (ADR 0008). Todas as demais variáveis do conjunto — incluindo `TELEGRAM_BOT_TOKEN`, `OLLAMA_API_KEY` e `OLLAMA_MODEL` — SHALL ser aceitas vazias, e um valor vazio nelas SHALL NOT impedir nenhum subcomando de iniciar.
-
-`TELEGRAM_BOT_TOKEN` vazio SHALL NOT derrubar o `serve` nesta entrega, porque ainda não existe adapter de Telegram que o consuma; ele SHALL se tornar obrigatório no M1, quando esse adapter for introduzido.
-
-#### Scenario: `.env` recém-copiado sobe o serve
-
-- **Given** um `.env` copiado literalmente de `.env.example`, portanto com `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `OLLAMA_API_KEY` e `OLLAMA_MODEL` vazios, e com um `DATABASE_URL` válido
-- **When** `noto serve` inicia
-- **Then** a configuração é carregada sem erro, o processo sobe e `GET /healthz` responde `200`
-
-#### Scenario: Token de Telegram vazio não é erro
-
-- **Given** `TELEGRAM_BOT_TOKEN` vazio e `TELEGRAM_TRANSPORT=polling`
-- **When** a configuração é validada
-- **Then** nenhum erro é produzido e o processo prossegue
-
-#### Scenario: Webhook sem segredo continua reprovando
-
-- **Given** `TELEGRAM_TRANSPORT=webhook` e `TELEGRAM_WEBHOOK_SECRET` vazio
-- **When** a configuração é validada
-- **Then** o processo encerra com erro citando `TELEGRAM_WEBHOOK_SECRET`
-
 ### Requirement: `.env.example` é carregável sem transformação
 
 `.env.example` SHALL ser um arquivo que possa ser copiado para `.env` e consumido tanto pelo `env_file` do Docker Compose quanto por `set -a; . ./.env` num shell POSIX, sem edição. Comentários SHALL ocupar uma linha própria acima da variável que descrevem; um comentário SHALL NOT aparecer na mesma linha depois de um valor, porque ambos os consumidores o incorporariam ao valor. Os valores declarados no arquivo SHALL apontar para `localhost`, que é o correto para executar o binário fora de contêiner.
@@ -114,3 +90,45 @@ Nem a configuração nem qualquer log de inicialização SHALL emitir os valores
 - **Given** `TELEGRAM_BOT_TOKEN` com um valor qualquer
 - **When** a configuração carregada é registrada em log na inicialização
 - **Then** o valor do token não aparece na saída, e em seu lugar há um marcador de redação
+
+### Requirement: Variáveis obrigatórias
+
+As variáveis incondicionalmente obrigatórias SHALL ser `DATABASE_URL` e `TELEGRAM_BOT_TOKEN`. Uma variável obrigatória definida como string vazia ou composta apenas de espaços SHALL ser tratada como ausente. `TELEGRAM_WEBHOOK_SECRET` SHALL ser obrigatória apenas quando `TELEGRAM_TRANSPORT` for `webhook` (ADR 0008). Todas as demais variáveis do conjunto — incluindo `OLLAMA_API_KEY` e `OLLAMA_MODEL` — SHALL continuar aceitas vazias, e um valor vazio nelas SHALL NOT impedir nenhum subcomando de iniciar.
+
+A obrigatoriedade de `TELEGRAM_BOT_TOKEN` SHALL valer para **todos** os subcomandos (`serve`, `worker` e `migrate`), porque a configuração é carregada e validada uma única vez antes do despacho. A mensagem de erro SHALL nomear a variável e SHALL NOT conter o valor de nenhum segredo.
+
+#### Scenario: Token ausente reprova
+
+- **Given** `TELEGRAM_BOT_TOKEN` não definida e um `DATABASE_URL` válido
+- **When** `noto serve` inicia
+- **Then** o processo encerra com código diferente de zero e a mensagem de erro cita `TELEGRAM_BOT_TOKEN`
+
+#### Scenario: Token vazio ou só com espaços reprova
+
+- **Given** `TELEGRAM_BOT_TOKEN` definida como string vazia, ou como espaços
+- **When** a configuração é validada
+- **Then** o processo encerra com erro citando `TELEGRAM_BOT_TOKEN`
+
+#### Scenario: Token e banco ausentes são reportados juntos
+
+- **Given** `TELEGRAM_BOT_TOKEN` e `DATABASE_URL` ambas ausentes
+- **When** a configuração é validada
+- **Then** uma única mensagem de erro cita as duas variáveis
+
+#### Scenario: `.env.example` copiado sem edição é recusado
+
+- **Given** um `.env` copiado literalmente de `.env.example`, portanto com `TELEGRAM_BOT_TOKEN` vazio
+- **When** `noto serve`, `noto worker` ou `noto migrate` inicia
+- **Then** o processo encerra com erro citando `TELEGRAM_BOT_TOKEN`, antes de qualquer trabalho
+
+#### Scenario: `.env` com o token preenchido carrega
+
+- **Given** um `.env` copiado de `.env.example` com `TELEGRAM_BOT_TOKEN` preenchido, `DATABASE_URL` válido e `TELEGRAM_WEBHOOK_SECRET`, `OLLAMA_API_KEY` e `OLLAMA_MODEL` vazios
+- **When** a configuração é validada
+- **Then** nenhum erro é produzido e o processo prossegue
+
+#### Scenario: Webhook sem segredo continua reprovando
+
+- **Given** `TELEGRAM_TRANSPORT=webhook` e `TELEGRAM_WEBHOOK_SECRET` vazio
+- **When** a configuração é validada
+- **Then** o processo encerra com erro citando `TELEGRAM_WEBHOOK_SECRET`
